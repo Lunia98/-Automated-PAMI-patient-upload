@@ -6,16 +6,23 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
 import traceback
+import calendar
+from datetime import date 
+
 PATH = "C:\\Program Files (x86)\\chromedriver.exe"
 driver = webdriver.Chrome(PATH) 
-path = "C:\\Users\\milag\\Desktop\\datajulio.csv"
+path = "C:\\Users\\milag\\Desktop\\dataagosto.csv"
 lines = [line for line in open(path)]   
 dataset = [line.strip().split(';') for line in open(path)]
-​
+
+xpath_diag_empty= "//tbody[@id='zk_comp_244-rows']/tr[1]/td[2]"
+xpath_test_empty= "//tbody[@id='zk_comp_287-rows']/tr[1]/td[2]"
 # Created may calendar in list of lists
-calendarCode= [[0,0,1,2,3,4,5],[n for n in range(6,13)],[n for n in range(13,20)]
-,[n for n in range(20,27)],[27,28,29,30,31,0,0]]
-​
+today= date.today()
+last_month= today.month -1
+current_year = today.year
+calendarCode= calendar.monthcalendar(current_year,last_month)
+
 errorList = []
 # Convert all the list with the correct types 
 # The new list of patients now is 'data'
@@ -24,11 +31,11 @@ for line in dataset:
     day = int(line[0])
     name = str(line[1])
     dni = line[2]
-    diagnostic = line[3]
-    test = int(line[4])
-    hour = str(line[5])
+    diag = line[3]
+    test0 = int(line[4])
+    hour0 = str(line[5])
     afiliadoPropio = line[6]
-    data.append([day,name,dni,diagnostic,test,hour,afiliadoPropio])
+    data.append([day,name,dni,diag,test0,hour0,afiliadoPropio])
 # For upload a patient
 def alta():
     alta = WebDriverWait(driver, 10).until(
@@ -36,7 +43,7 @@ def alta():
     ) 
     alta.click()  
 # This function opens the calendar and goes to the last month (we always want to that)
-def calendar():
+def click_calendar():
     calendario = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.ID, "zk_comp_128-real"))
         )
@@ -46,7 +53,7 @@ def calendar():
         EC.presence_of_element_located((By.ID, "_z_6-left"))
     )
     left.click()
-​
+
 def check_week(p,data,calendarCode):
     if data[p][0] in calendarCode[0]:
         week = '_z_6-w0'
@@ -63,7 +70,7 @@ def check_week(p,data,calendarCode):
     elif data[p][0] in calendarCode[4]:
         week = '_z_6-w4'
         return week   
-​
+
 def check_day(p,data,calendarCode):
     if data[p][0] in calendarCode[0]:
         d = calendarCode[0].index(data[p][0])
@@ -107,15 +114,17 @@ def patient_clic():
             EC.presence_of_element_located((By.ID, "zk_comp_130-real"))
         )
     emptyPatiente.click()
-​
+
 def n_beneficiario(num):
     searchBene = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.ID, "zk_comp_153"))
     )
     searchBene.click()
-    searchBene.clear()
     time.sleep(1)
-​
+    for i in range (0,18):
+        searchBene.send_keys(Keys.BACKSPACE)
+    time.sleep(1)
+
     searchBene.send_keys(num)
     
 def insert_dni(Dni): 
@@ -124,20 +133,19 @@ def insert_dni(Dni):
     )
     searchBene.click()
     searchBene.clear()
-    time.sleep(1)
+    time.sleep(0.3)
     for i in range (0,18):
         searchBene.send_keys(Keys.BACKSPACE)
-    time.sleep(1)
-​
+    time.sleep(0.5)
+
     searchDni = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.ID, "zk_comp_140"))
     )
     searchDni.click()
-    time.sleep(1)
+    time.sleep(0.5)
     for i in range (0,10):
         searchDni.send_keys(Keys.BACKSPACE)
     time.sleep(1)
-​
     searchDni.send_keys(Dni)
 # The patient is sought after having entered ID or benefit number
 def clic_search(): 
@@ -145,29 +153,54 @@ def clic_search():
             EC.presence_of_element_located((By.ID, "zk_comp_159"))
         )
     findPatiente.click()
+
 # Select the only patient that appears    
 def select_patient(): 
     patienteSelected = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.ID, "zk_comp_164-rows"))
         )
     patienteSelected.click()
-​
-def diagnostic(diag):
+
+def check_if_exist_second_patient(datapatient):
+    try: 
+        second_result = WebDriverWait(driver, 1).until(EC.presence_of_element_located((By.XPATH, "//tbody[@id='zk_comp_164-rows']/tr[2]")))
+    except: 
+        second_result = False	
+    if second_result:
+        lastname= datapatient.split()
+        first_result = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//tbody[@id='zk_comp_164-rows']/tr[1]")))
+        first_text_content = first_result.get_attribute("textContent").split()
+        second_text_content = second_result.get_attribute("textContent").split()
+        if lastname[0].lower() == first_text_content[0].lower():
+            first_result.click()
+        elif lastname[0].lower() == second_text_content[0].lower():
+            second_result.click()
+        else: 
+            cancel()
+    else:
+        time.sleep(0.3)
+        select_patient()
+
+def click_diagnostic():
     clicDiagnostic = WebDriverWait(driver, 10).until(
         EC.presence_of_element_located((By.ID, "zk_comp_223-real"))
     )
     clicDiagnostic.click()
     time.sleep(1)
+
+def search_diag(diag):
     searchDiagnostic = WebDriverWait(driver, 10).until(
         EC.presence_of_element_located((By.ID,"zk_comp_236"))
     )
     searchDiagnostic.click()
-​
+
     time.sleep(1)
     searchDiagnostic.send_keys(diag)
     time.sleep(0.5)
     searchDiagnostic.send_keys(Keys.RETURN)
     time.sleep(1)
+
+def select_and_add_diag():
     selectDiag = WebDriverWait(driver, 20).until(
         EC.presence_of_element_located((By.XPATH, "//tbody[@id='zk_comp_244-rows']/tr[1]"))
     )
@@ -178,13 +211,28 @@ def diagnostic(diag):
     )
     addDiag.click()
     time.sleep(0.5)
-    
-def test(codTest):
+
+def same_as_above(datacurrent, dataprev):
+    return datacurrent == dataprev
+
+def is_not_empty(xpath):
+    try: 
+        selectDiag = WebDriverWait(driver, 1).until(
+        EC.presence_of_element_located((By.XPATH, xpath))
+    )
+    except:
+        selectDiag = False
+    if selectDiag != False:
+        return True
+    else:
+        return False
+def click_test():
     clicTest = WebDriverWait(driver, 10).until(
         EC.presence_of_element_located((By.ID,"zk_comp_280-real"))
     )
     clicTest.click()
     time.sleep(0.5)
+def search_test(codTest):
     searchTest = WebDriverWait(driver, 10).until(
         EC.presence_of_element_located((By.ID,"zk_comp_285"))
     )
@@ -193,6 +241,7 @@ def test(codTest):
     searchTest.send_keys(codTest)
     searchTest.send_keys(Keys.RETURN)
     time.sleep(1)
+def select_test():
     selectTest = WebDriverWait(driver, 20).until(
         EC.presence_of_element_located((By.XPATH, "//tbody[@id='zk_comp_287-rows']/tr[1]"))
     )
@@ -205,7 +254,7 @@ def hour(h):
         selectHour.send_keys(Keys.BACKSPACE)
     selectHour.send_keys(h)
 def cant():
-​
+
     cant1 = driver.find_element_by_id("zk_comp_306")
     cant1.send_keys(1)
 def patient_type():
@@ -222,17 +271,23 @@ def accepted():
         EC.presence_of_element_located((By.ID, "zk_comp_317"))
     )
     aceptar.click()
+def cancel():
+    cancel = driver.find_element_by_id("zk_comp_318")
+    cancel.click()
+    time.sleep(2)
+    alta()
+    errorList.append(data[p])
 #-------------------------
 #Entry to PAMI's website
 driver.get("https://efectoresweb.pami.org.ar/EfectoresWeb/login.isp")
 #Open session
 search1 = driver.find_element_by_id("zk_comp_16")
-search1.send_keys("xxxxxxxxxxxxxxxxx")
+search1.send_keys("UP000000000000")
 search2 = WebDriverWait(driver, 10).until(
     EC.presence_of_element_located((By.ID, "zk_comp_20"))
 )
-​
-search2.send_keys("xxxxxxxxxxxxxxxxx")
+
+search2.send_keys("xxxxxxxxxxxxxx")
 search2.send_keys(Keys.RETURN)
     #Enter the section where I actually upload the data
 try:
@@ -246,50 +301,59 @@ try:
     prestacionAmbulatoria.click()
     alta()
     time.sleep(1)
-​
+
 except Exception:
     traceback.print_exc()
      
-​
-​
-for p in range(min,max):
+
+for p in range(0,len(data)):
     try:   
         time.sleep(1)
         complete_name_doctor()
         time.sleep(1)
-        calendar()
+        click_calendar()
         w = check_week(p,data,calendarCode)
         d = check_day(p,data,calendarCode)
         time.sleep(1)
         clic_day(w,d)
         patient_clic()
-        time.sleep(1)
+        time.sleep(0.5)
     
         if (len(data[p][2]) > 9):
             searchDni = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.ID, "zk_comp_140")))
             searchDni.click()
-            time.sleep(1)
+            time.sleep(0.5)
             for i in range (0,10):
                 searchDni.send_keys(Keys.BACKSPACE)
-            time.sleep(1)
+            time.sleep(0.5)
             n_beneficiario(data[p][2])
             
         else: 
             insert_dni(data[p][2])
+        time.sleep(0.5)
         clic_search()
         
-        time.sleep(1)
+        check_if_exist_second_patient(data[p][1])
         
-        select_patient()
+        time.sleep(0.3)
+        
+        click_diagnostic()
+
+        if same_as_above(data[p][3], data[p-1][3]) and is_not_empty(xpath_diag_empty):
+            select_and_add_diag()
+        else:
+            search_diag(data[p][3])
+            select_and_add_diag()
         
         time.sleep(0.5)
-        
-        diagnostic(data[p][3])
-        
-        time.sleep(0.5)
-        
-        test(data[p][4])
+        click_test()
+
+        if same_as_above(data[p][4], data[p-1][4]) and is_not_empty(xpath_test_empty):
+            select_test()
+        else:
+            search_test(data[p][4])
+            select_test()
         
         time.sleep(0.5)
         
@@ -310,25 +374,14 @@ for p in range(min,max):
         
         alta()
     except:
-        cancel = driver.find_element_by_id("zk_comp_318")
-        cancel.click()
-        time.sleep(2)
-        alta()
-        errorList.append(data[p])
+        cancel()
     #Click in accepted 
     #Alta again 
 if len(errorList) > 0:    
     print("Hey these patients couldn't be processed")
     print(errorList)
-​
+
 # Falta:
-#-Errores para chequear: 
-​
-    # Dos personas mismo dni
-​
-    # Problema de la hora (hay que agregar el 0 porque el csv se guarda como 800)
-#Corregir los try/except/finally
-​
+
 #Retocar time sleeps entre cosas     
-​
-​
+#Agregar comentarios 
